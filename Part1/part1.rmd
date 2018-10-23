@@ -1,0 +1,69 @@
+---
+title: "Dedup"
+author: "Rachel Richardson"
+date: "October 22, 2018"
+output: html_document
+---
+
+##Problem:
+
+PCR duplicates can be a source of error for Illumina sequencing, especially considering RNA-seq differential expression analysis. PCR duplicates can occur disproportionally over reads, so there is a need to remove duplicates from the data. To do this, we will design a program to compare alignment read outputs (SAM files) in order to determine if reads are PCR duplicates. Important components inculde strand, start pososion of read, CIGAR string, and UMI or randomer.
+
+Consider threading for forward/reverse?
+
+
+
+##Functions:
+
+CIGAR reader - Reads CIGAR string for important characters and integers. Returns S, I, D, N, and other for appropriate CIGAR entries. To be used to determine reverse string start position.
+
+FWDCLIP - Only takes soft clipping into account for forward strand reads. POS and CIGAR input. Returns adjusted POS
+
+Window fill fwd - Fills forward window calling FWDCLIP function if S is in CIGAR string, checking for duplicates with each addition. Returns fwd window (list of saved variables).
+
+Window fill rvs - Fills reverse window calling CIGAR reader function. Adds output to POS, then checking for duplicates with each addition. Returns rvs window.
+
+Sliding window fwd - Takes fwd window. Reads in next line and calls FWDCLIP if S is in CIGAR string. Checks for duplicates in window. If none, writes window[0] to out and sets window as window[1:] + [newline]. At EOF, writes window to out. Returns null.
+
+Sliding window rvs - Takes rvs window. Reads in next line and calls CIGAR read. Checks for duplicates in window. If none, writes window[0] to out and sets window as window[1:] + [newline]. At EOF, writes window to out. Returns null.
+
+
+
+##Test examples:
+
+
+For CIGAR read function and FWDCLIP
+
+Forward - soft clip (before M), no soft clip
+
+Reverse - soft clip, insertion, deletion, splicing
+
+Different UMIs (Non UMIs)
+
+Different start points (POS)
+
+Different chromosome (consider same start positions)
+
+Header lines
+
+-------
+
+For Window functions:
+
+Comparison against splice samples large distances apart
+
+-------
+
+Main function:
+
+Paired end - error message for single??
+
+
+
+
+##A new kind of psuedocode:
+
+Forgot to include in png: UMI check as reading lines, discards non-UMIs (Bit-wise correction?)
+
+
+![Psuedocode Flow chart](C:/Users/rachel/Dedup/Dedup.png)
