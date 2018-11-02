@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#SBATCH --partition=short       ### Partition (like a queue in PBS)
+#SBATCH --job-name=RRPS7          ### Job Name
+#SBATCH --time=0-20:01:00       ### Wall clock 0ime limit in Days-HH:MM:SS
+#SBATCH --nodes=1               ### Number of nodes needed for the job
+#SBATCH --ntasks-per-node=28     ### Number of tasks to be launched per Node
+#SBATCH --mail-user=rarichardson92@gmail.com
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+# Don't forget to load modules in bash, easybuild, prl, python/3.6.0 before running code!
+
+ml purge
+ml load easybuild prl python/3.6.0
+
+# $1 should be the name of the SAM file to be processed
+# $2 should be the UMI file to be processed
+# if duplicates are desired for the script,
+
+# ./dedup.script file.sam Umi.txt
+
+
+# Sorts file, removes headers and saves as file.process.sam
+
+#grep "^@" $1 > headers.sam
+#To be included if you need the headers for any reason (optional in samtools, figure that they can be optional here)
+
+echo ""
+echo "Deduper program instructions:"
+echo ""
+echo "Program takes single-end reads with optional UMI file."
+echo "Duplicates can be kept in a file.duplicate.out.sam format if desired."
+echo "UMI file must be seperated by new line characters."
+echo "Program should be run as specified by below sample:"
+echo ""
+echo ""
+echo "./dedup.script filewithreads.sam UMI.txt keep"
+echo ""
+echo ""
+echo "NOTE: UMI.txt and keep are optional entries; keep indicates that duplicates should be kept."
+echo "Non-entry or incorrect entries will result in discarded duplicates."
+echo ""
+echo ""
+
+grep -v "^@" $1 | sed -E "s/([0-9]+):([ATCG]+)/\1\t\2/" | sort -k2,2d -k4,4 -k5,5n | sed -E "s/([0-9]+)\t([ATCG]+)/\1:\2/" > $1.process.sam
+
+paired="`cut -f 9 "$1" | grep -P [0-9] | sort -rn | uniq | head -n 1`"
+
+if [ $paired -gt 0 ]; then
+    echo "Invalid input. File contains paired-end reads, program is only suitable for single-end reads."
+    exit 128
+fi
+
+UMI=$2
+
+if [ "$UMI" = "" ]; then UMI="None"; fi
+
+echo "UMI file: "$UMI
+
+rvswin="`cut -f 6 "$1" | grep -o -P [0-9]+N | grep -o -P [0-9]+ | awk 'BEGIN{i=o} $0>i{i=$0} END{print i+100}'`"
+
+echo "SAM file sorted for processing. (Barcode, Chromosome/linkage group, Position)"
+if [ "$3" = "keep" ]; then
+    echo "Duplicates will be kept."
+fi
+echo "Reverse window is set to: "$rvswin
+echo ""
+
+if [ "$3" = "keep" ]; then
+    time ./Richardson_deduper.py -f $1 -u $UMI -sizef 100 -sizer $rvswin -keep True
+else
+    time ./Richardson_deduper.py -f $1 -u $UMI -sizef 100 -sizer $rvswin
+fi
+
+rm $1.process.sam
